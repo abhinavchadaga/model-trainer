@@ -1,0 +1,5 @@
+# don't add node packages
+*node_modules*
+
+# user uploaded dataset
+server/user-dataset/*
