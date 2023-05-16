@@ -1,34 +1,71 @@
 const multer = require('multer');
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = 3000;
+const UPLOAD_DIR = 'data/';
 
+// server can only handle 1 user at a time
+// check if the upload directory contains at most 1 file
+const checkAvailability = (req, res, next) => {
+    // check if the upload directory exists
+    if (!fs.existsSync(UPLOAD_DIR)) next();
+
+    // check if the upload directory is empty
+    const files = fs.readdirSync(UPLOAD_DIR);
+    if (files.length > 0) {
+        res.status(400).send('Dataset already uploaded');
+        console.log(files);
+    } else {
+        next();
+    }
+};
+
+// create a multer storage object
+// sets the destination folder and filename
+// for the uploaded file
 const storage = multer.diskStorage({
-    destination: 'user-dataset',
+    destination: UPLOAD_DIR,
     filename: function (req, file, cb) {
-        const fname = `dataset_${Date.now()}${path.extname(file.originalname)}`;
-        cb(null, fname);
+        // create a save name using the current timestamp
+        const ext = path.extname(file.originalname);
+        const originalNameNoExt = path.basename(file.originalname, ext);
+        const saveName = `${originalNameNoExt}_${Date.now()}${ext}`;
+        // save the filename in the userData object
+        cb(null, saveName);
     },
 });
 
+// create a multer upload object
+// sets the storage object and file filter methodology
 const upload = multer({
     storage: storage,
     fileFilter: function (req, file, cb) {
+        // allow only zips and csv files
         const allowedExtensions = new Set(['.zip', '.csv']);
         const ext = path.extname(file.originalname);
         if (allowedExtensions.has(ext)) {
             cb(null, true);
         } else {
-            console.log(ext);
             cb(null, false);
         }
     },
 });
 
-app.post('/upload-dataset', upload.single('dataset'), (req, res) => {
-    res.send('success!');
-});
+// POST route for handling file uploads
+app.post(
+    '/upload-dataset',
+    checkAvailability,
+    upload.single('dataset'),
+    (req, res) => {
+        if (req.file) {
+            res.status(200).send('File Successfully Uploaded');
+        } else {
+            res.status(400).send('Invalid File Type');
+        }
+    }
+);
 
 app.listen(port, () => console.log(`Listening on port ${port}...`));
