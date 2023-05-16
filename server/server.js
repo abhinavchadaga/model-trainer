@@ -17,7 +17,6 @@ const checkAvailability = (req, res, next) => {
     const files = fs.readdirSync(UPLOAD_DIR);
     if (files.length > 0) {
         res.status(400).send('Dataset already uploaded');
-        console.log(files);
     } else {
         next();
     }
@@ -33,7 +32,6 @@ const storage = multer.diskStorage({
         const ext = path.extname(file.originalname);
         const originalNameNoExt = path.basename(file.originalname, ext);
         const saveName = `${originalNameNoExt}_${Date.now()}${ext}`;
-        // save the filename in the userData object
         cb(null, saveName);
     },
 });
@@ -67,5 +65,26 @@ app.post(
         }
     }
 );
+
+// DELETE route for deleting the dataset once the user closes the browser
+app.delete('/close-app', (req, res) => {
+    // check if the upload directory exists
+    if (!fs.existsSync(UPLOAD_DIR)) {
+        res.status(200).send('No dataset to delete');
+        return;
+    }
+
+    // check if the upload directory is empty
+    const files = fs.readdirSync(UPLOAD_DIR);
+    if (files.length === 0) {
+        res.status(200).send('No dataset to delete');
+        return;
+    }
+
+    // delete the file
+    const filePath = path.join(UPLOAD_DIR, files[0]);
+    fs.unlinkSync(filePath);
+    res.status(200).send('Dataset deleted');
+});
 
 app.listen(port, () => console.log(`Listening on port ${port}...`));
