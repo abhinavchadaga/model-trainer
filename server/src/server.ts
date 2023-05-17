@@ -1,17 +1,27 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import express, { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 const port = 3000;
 const UPLOAD_DIR = 'data/';
 
-// server can only handle 1 user at a time
-// check if the upload directory contains at most 1 file
-const checkAvailability = (req, res, next) => {
+/**
+ * The server can only handle 1 user at a time.
+ * This middleware function checks if the server is available to accept a new dataset
+ *
+ * @param req Request object
+ * @param res Response object
+ * @param next NextFunction object
+ */
+const checkAvailability = (req: Request, res: Response, next: NextFunction) => {
     // check if the upload directory exists
-    if (!fs.existsSync(UPLOAD_DIR)) next();
+    // create if it doesn't and call next middleware function
+    if (!fs.existsSync(UPLOAD_DIR)) {
+        fs.mkdirSync(UPLOAD_DIR);
+        next();
+    }
 
     // check if the upload directory is empty
     const files = fs.readdirSync(UPLOAD_DIR);
@@ -22,9 +32,10 @@ const checkAvailability = (req, res, next) => {
     }
 };
 
-// create a multer storage object
-// sets the destination folder and filename
-// for the uploaded file
+/**
+ * The storage object for multer
+ * Rename the file to include the current timestamp
+ */
 const storage = multer.diskStorage({
     destination: UPLOAD_DIR,
     filename: function (req, file, cb) {
@@ -36,8 +47,10 @@ const storage = multer.diskStorage({
     },
 });
 
-// create a multer upload object
-// sets the storage object and file filter methodology
+/**
+ * The upload object for multer
+ * Only allow zips and csv files
+ */
 const upload = multer({
     storage: storage,
     fileFilter: function (req, file, cb) {
@@ -52,22 +65,27 @@ const upload = multer({
     },
 });
 
-// POST route for handling file uploads
+/**
+ * POST route to allow a user to upload a dataset
+ */
 app.post(
     '/upload-dataset',
     checkAvailability,
     upload.single('dataset'),
-    (req, res) => {
+    (req: Request, res: Response) => {
         if (req.file) {
             res.status(200).send('File Successfully Uploaded');
         } else {
-            res.status(400).send('Invalid File Type');
+            res.status(400).send('File Upload Failed');
         }
     }
 );
 
-// DELETE route for deleting the dataset once the user closes the browser
-app.delete('/close-app', (req, res) => {
+/**
+ * DELETE route to delete the uploaded dataset
+ * Called when the user closes the app
+ */
+app.delete('/close-app', (req: Request, res: Response) => {
     // check if the upload directory exists
     if (!fs.existsSync(UPLOAD_DIR)) {
         res.status(200).send('No dataset to delete');
